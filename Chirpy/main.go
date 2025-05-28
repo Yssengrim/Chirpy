@@ -1,15 +1,38 @@
 package main
 
-import "net/http"
+import (
+	"log"
+	"net/http"
+	"sync/atomic"
+)
+
+type apiConfig struct {
+	fileserverHits atomic.Int32
+}
 
 func main() {
-	serveMux := http.NewServeMux()
+	const filepathRoot = "."
+	const port = "8080"
 
-	serveMux.Handle("/", http.FileServer(http.Dir("."))) // <-- Look at this line!
-
-	chirpyServer := http.Server{
-		Handler: serveMux,
-		Addr:    ":8080",
+	apiCfg := apiConfig{
+		fileserverHits: atomic.Int32{},
 	}
-	chirpyServer.ListenAndServe()
+
+	mux := http.NewServeMux()
+	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
+	mux.Handle("/app/", fsHandler)
+
+	mux.HandleFunc("GET /api/healthz", handlerReadiness)
+	mux.HandleFunc("POST /api/validate_chirp", handlerChirpsValidate)
+
+	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
+	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
+
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: mux,
+	}
+
+	log.Printf("Serving files from %s on port: %s\n", filepathRoot, port)
+	log.Fatal(srv.ListenAndServe())
 }
