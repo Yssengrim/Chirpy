@@ -11,11 +11,11 @@ import (
 )
 
 type Chirp struct {
-	ID        uuid.UUID
-	Body      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	UserID    uuid.UUID
+	ID        uuid.UUID `json:"id"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	UserID    uuid.UUID `json:"user_id"`
 }
 
 type User struct {
