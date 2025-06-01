@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/Yssengrim/Chirpy/internal/auth"
 	"github.com/google/uuid"
 )
 
@@ -18,8 +19,18 @@ type polkaWebhookData struct {
 }
 
 func (apiConfig *apiConfig) handlerChirpyRed(w http.ResponseWriter, r *http.Request) {
+	apiKey, err := auth.GetAPIKey(r.Header)
+	if err != nil {
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if apiKey != apiConfig.polkaKey {
+		http.Error(w, "Forbidden: Polka key cannot access this endpoint", http.StatusUnauthorized)
+		return
+	}
+
 	var payload polkaWebhookPayload
-	err := json.NewDecoder(r.Body).Decode(&payload)
+	err = json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
