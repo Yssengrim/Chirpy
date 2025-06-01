@@ -17,7 +17,7 @@ func (a *apiConfig) handlerAllChirps(w http.ResponseWriter, r *http.Request) {
 		response[i] = chirpResponse{
 			ID:        chirp.ID,
 			Body:      chirp.Body,
-			UserID:    chirp.UserID,
+			UserID:    chirp.UserID.String(),
 			CreatedAt: chirp.CreatedAt,
 			UpdatedAt: chirp.UpdatedAt,
 		}

@@ -18,12 +18,16 @@ type apiConfig struct {
 	platform       string
 	dbQueries      *database.Queries
 	fileserverHits atomic.Int32
+	jwtSecret      string
 }
+
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
+	ID             uuid.UUID `json:"id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	Email          string    `json:"email"`
+	HashedPassword string
+	IsChirpyRed    bool `json:"is_chirpy_red"`
 }
 
 type Chirp struct {
@@ -39,6 +43,12 @@ func main() {
 	const port = "8080"
 
 	godotenv.Load()
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET not set in environment")
+	}
+
 	dbURL := os.Getenv("DB_URL")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
@@ -50,6 +60,7 @@ func main() {
 		platform:       os.Getenv("PLATFORM"),
 		dbQueries:      dbQueries,
 		fileserverHits: atomic.Int32{},
+		jwtSecret:      jwtSecret,
 	}
 
 	mux := http.NewServeMux()
@@ -64,6 +75,11 @@ func main() {
 	mux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
 	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
+	mux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
+	mux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
+	mux.HandleFunc("PUT /api/users", apiCfg.handlerUsersUpdate)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handlerChirpDelete())
+	mux.HandleFunc("POST /api/polka/webhooks", apiCfg.handlerChirpyRed)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
