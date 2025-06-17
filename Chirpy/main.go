@@ -43,26 +43,37 @@ func main() {
 	const filepathRoot = "."
 	const port = "8080"
 
-	godotenv.Load()
+	godotenv.Load(".env")
+	dbURL := os.Getenv("DB_URL")
+	if dbURL == "" {
+		log.Fatal("DB_URL must be set")
+	}
 
+	dbConn, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Fatalf("Error opening database: %s", err)
+	}
+	platform := os.Getenv("PLATFORM")
+	if platform == "" {
+		log.Fatal("ADMIN_KEY environment variable is not set")
+	}
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		log.Fatal("JWT_SECRET not set in environment")
+		log.Fatal("JWT_SECRET environment variable is not set")
+	}
+	polkaKey := os.Getenv("POLKA_KEY")
+	if polkaKey == "" {
+		log.Fatal("POLKA_KEY environment variable is not set")
 	}
 
-	dbURL := os.Getenv("DB_URL")
-	db, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		log.Fatal(err)
-	}
-	dbQueries := database.New(db)
+	dbQueries := database.New(dbConn)
 
 	apiCfg := apiConfig{
-		platform:       os.Getenv("PLATFORM"),
 		dbQueries:      dbQueries,
 		fileserverHits: atomic.Int32{},
 		jwtSecret:      jwtSecret,
-		polkaKey:       os.Getenv("POLKA_KEY"),
+		polkaKey:       polkaKey,
+		platform:       platform,
 	}
 
 	mux := http.NewServeMux()
@@ -88,6 +99,6 @@ func main() {
 		Handler: mux,
 	}
 
-	log.Printf("Serving files from %s on port: %s\n", filepathRoot, port)
+	log.Printf("Serving on: %s\n", port)
 	log.Fatal(srv.ListenAndServe())
 }
